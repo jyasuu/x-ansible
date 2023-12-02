@@ -43,3 +43,82 @@
 - name: Enable v2 
   ansible.builtin.shell:
     cmd: "docker exec -it prodvault vault secrets enable -version=2 kv"
+
+
+- name: Enable v2 
+  ansible.builtin.shell:
+    cmd: "docker exec -it prodvault vault auth enable jwt"
+
+- name: Enable v2 
+  ansible.builtin.shell: |
+    docker exec -it prodvault vault policy write myproject-staging - <<EOF
+    # Policy name: myproject-staging
+    #
+    # Read-only permission on 'secret/myproject/staging/*' path
+    path "secret/myproject/staging/*" {
+      capabilities = [ "read" ]
+    }
+    EOF
+    
+- name: Enable v2 
+  ansible.builtin.shell: |
+    docker exec -it prodvault vault policy write myproject-staging - <<EOF
+    # Policy name: myproject-staging
+    #
+    # Read-only permission on 'secret/myproject/staging/*' path
+    path "secret/myproject/staging/*" {
+      capabilities = [ "read" ]
+    }
+    EOF
+
+- name: Enable v2 
+  ansible.builtin.shell: |
+    docker exec -it prodvault vault policy write myproject-production - <<EOF
+    # Policy name: myproject-production
+    #
+    # Read-only permission on 'secret/myproject/production/*' path
+    path "secret/myproject/production/*" {
+      capabilities = [ "read" ]
+    }
+    EOF
+
+- name: Enable v2 
+  ansible.builtin.shell: |
+    docker exec -it prodvault vault write auth/jwt/role/myproject-staging - <<EOF
+    {
+      "role_type": "jwt",
+      "policies": ["myproject-staging"],
+      "token_explicit_max_ttl": 60,
+      "user_claim": "user_email",
+      "bound_claims": {
+        "project_id": "22",
+        "ref": "master",
+        "ref_type": "branch"
+      }
+    }
+    EOF
+
+- name: Enable v2 
+  ansible.builtin.shell: |
+    docker exec -it prodvault vault write auth/jwt/role/myproject-production - <<EOF
+    {
+      "role_type": "jwt",
+      "policies": ["myproject-production"],
+      "token_explicit_max_ttl": 60,
+      "user_claim": "user_email",
+      "bound_claims_type": "glob",
+      "bound_claims": {
+        "project_id": "22",
+        "ref_protected": "true",
+        "ref_type": "branch",
+        "ref": "auto-deploy-*"
+      }
+    }
+    EOF
+
+
+- name: Enable v2 
+  ansible.builtin.shell: |
+    docker exec -it prodvault vault write auth/jwt/config oidc_discovery_url="https://gitlab.com" bound_issuer="https://gitlab.com"
+
+

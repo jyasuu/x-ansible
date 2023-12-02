@@ -5,43 +5,6 @@
   become: true
 
   tasks:
-    - name: Create directory
-      ansible.builtin.file:
-        path: /opt/docker/uptime-kuma/
-        state: directory
-        mode: '0755'
-
-    - name: Write the apache config file
-      ansible.builtin.template:
-        src: uptime-kuma/docker-compose.yml
-        dest: /opt/docker/uptime-kuma/docker-compose.yml
-        mode: '0644'
-
-    - name: Write the apache config file
-      ansible.builtin.template:
-        src: uptime-kuma/init.sql
-        dest: /opt/docker/uptime-kuma/init.sql
-        mode: '0644'
-
-    - name: Start service
-      ansible.builtin.shell:
-        cmd: docker compose -f /opt/docker/uptime-kuma/docker-compose.yml up -d 
-
-        
-    - name: Start service
-      ansible.builtin.pause:
-        minutes: 1
-        
-
-    - name: Start service
-      ansible.builtin.shell:
-        cmd: docker compose -f /opt/docker/uptime-kuma/docker-compose.yml down
-
-    - name: Start service
-      ansible.builtin.shell:
-        cmd: cat /opt/docker/uptime-kuma/init.sql | sqlite3  $(docker volume inspect uptime-kuma_uptime-kuma | jq -r ' "\(.[0].Mountpoint)/kuma.db" ')
-
-    - name: Start service
-      ansible.builtin.shell:
-        cmd: docker compose -f /opt/docker/uptime-kuma/docker-compose.yml up -d 
-
+    - name: Build Vault
+      ansible.builtin.include_tasks:
+        file: tasks/vault.yml

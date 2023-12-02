@@ -1,0 +1,45 @@
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/vault/vault
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: vault/docker-compose.yml
+    dest: /opt/docker/vault/docker-compose.yml
+    mode: '0644'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: vault/vault.json
+    dest: /opt/docker/vault/vault/vault.json
+    mode: '0644'
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/vault/docker-compose.yml up -d 
+
+- name: Start service
+  ansible.builtin.pause:
+    seconds: 5
+
+- name: Init 
+  ansible.builtin.shell:
+    cmd: docker exec -it prodvault vault operator init -n 1 -t 1
+
+    
+
+- name: Unseal  
+  ansible.builtin.shell:
+    cmd: "docker exec -it prodvault vault operator unseal {{ key }}"
+
+
+- name: Login 
+  ansible.builtin.shell:
+    cmd: "docker exec -it prodvault vault login {{ token }}"
+
+- name: Enable v2 
+  ansible.builtin.shell:
+    cmd: "docker exec -it prodvault vault secrets enable -version=2 kv"

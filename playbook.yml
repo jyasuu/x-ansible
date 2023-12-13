@@ -5,6 +5,8 @@
   become: true
 
   tasks:
-    - name: Build Vault
-      ansible.builtin.include_tasks:
-        file: tasks/vault.yml
+    - name: Get artifact
+      ansible.builtin.include_role:
+        name: docker-install
+      vars:
+        # base_url: "https://example.com"

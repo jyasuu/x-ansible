@@ -1,0 +1,13 @@
+
+- name: Download package
+  ansible.builtin.get_url:
+    url: "{{ base_url }}/{{ item }}"
+    dest: "/tmp/{{ item  }}"
+    mode: '0664'
+  loop: "{{ packages }}"
+
+- name: Install package
+  ansible.builtin.apt:
+    deb: "/tmp/{{ item }}"
+  loop: "{{ packages }}"
+

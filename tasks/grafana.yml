@@ -1,0 +1,68 @@
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/grafana/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: grafana/docker-compose.yml
+    dest: /opt/docker/grafana/docker-compose.yml
+    mode: '0644'
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/grafana/grafana/data/
+    state: directory
+    mode: '0777'
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/grafana/grafana/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: grafana/.env
+    dest: /opt/docker/grafana/grafana/.env
+    mode: '0644'
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/grafana/grafana/provisioning/dashboards/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: grafana/provisioning/dashboards/dashboard.yml
+    dest: /opt/docker/grafana/grafana/provisioning/dashboards/dashboard.yml
+    mode: '0644'
+
+- name: Write the apache config file
+  ansible.builtin.copy:
+    src: templates/grafana/provisioning/dashboards/rpi-monitoring.json
+    dest: /opt/docker/grafana/grafana/provisioning/dashboards/rpi-monitoring.json
+    mode: '0644'
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/grafana/grafana/provisioning/datasources/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: grafana/provisioning/datasources/datasource.yml
+    dest: /opt/docker/grafana/grafana/provisioning/datasources/datasource.yml
+    mode: '0644'
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/grafana/docker-compose.yml down
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/grafana/docker-compose.yml up -d

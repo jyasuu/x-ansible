@@ -1,0 +1,26 @@
+version: "3"
+services:
+  grafana:
+    container_name: monitoring-grafana
+    image: grafana/grafana:latest
+    hostname: rpi-grafana
+    restart: unless-stopped
+    user: "472"
+    networks:
+      - internal
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./grafana/.env
+    volumes:
+      # /!\ To be modified depending on your needs /!\
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    # depends_on:
+    #   - prometheus
+
+networks:
+  internal:
+    # driver: bridge
+    external:
+      name: internal

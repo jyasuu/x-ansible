@@ -1,0 +1,28 @@
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/alertmanager/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: alertmanager/docker-compose.yml
+    dest: /opt/docker/alertmanager/docker-compose.yml
+    mode: '0644'
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/alertmanager/alertmanager/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: alertmanager/config.yml
+    dest: /opt/docker/alertmanager/alertmanager/config.yml
+    mode: '0644'
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/alertmanager/docker-compose.yml up -d 

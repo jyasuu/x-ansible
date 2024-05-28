@@ -1,0 +1,16 @@
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/node-exporter/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: node-exporter/docker-compose.yml
+    dest: /opt/docker/node-exporter/docker-compose.yml
+    mode: '0644'
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/node-exporter/docker-compose.yml up -d 

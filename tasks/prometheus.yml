@@ -1,0 +1,28 @@
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/prometheus/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: prometheus/docker-compose.yml
+    dest: /opt/docker/prometheus/docker-compose.yml
+    mode: '0644'
+
+- name: Create directory
+  ansible.builtin.file:
+    path: /opt/docker/prometheus/prometheus/
+    state: directory
+    mode: '0755'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: prometheus/prometheus.yml
+    dest: /opt/docker/prometheus/prometheus/prometheus.yml
+    mode: '0644'
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/prometheus/docker-compose.yml up -d 

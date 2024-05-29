@@ -1,21 +1,21 @@
 
 - name: Create directory
   ansible.builtin.file:
-    path: /opt/docker/cadvisor/
+    path: /opt/docker/postgres/
     state: directory
     mode: '0755'
 
 - name: Write the apache config file
   ansible.builtin.template:
-    src: cadvisor/docker-compose.yml
-    dest: /opt/docker/cadvisor/docker-compose.yml
+    src: postgres/docker-compose.yml
+    dest: /opt/docker/postgres/docker-compose.yml
     mode: '0644'
 
 - name: Start service
   ansible.builtin.shell:
-    cmd: docker compose -f /opt/docker/cadvisor/docker-compose.yml down
+    cmd: docker compose -f /opt/docker/postgres/docker-compose.yml down
   ignore_errors: true
 
 - name: Start service
   ansible.builtin.shell:
-    cmd: docker compose -f /opt/docker/cadvisor/docker-compose.yml up -d 
+    cmd: docker compose -f /opt/docker/postgres/docker-compose.yml up -d 

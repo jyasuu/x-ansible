@@ -13,4 +13,9 @@
 
 - name: Start service
   ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/node-exporter/docker-compose.yml down
+  ignore_errors: true
+
+- name: Start service
+  ansible.builtin.shell:
     cmd: docker compose -f /opt/docker/node-exporter/docker-compose.yml up -d 

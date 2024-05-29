@@ -1,3 +1,4 @@
+---
 
 - name: Create directory
   ansible.builtin.file:
@@ -22,6 +23,11 @@
     src: alertmanager/config.yml
     dest: /opt/docker/alertmanager/alertmanager/config.yml
     mode: '0644'
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/alertmanager/docker-compose.yml down
+  ignore_errors: true
 
 - name: Start service
   ansible.builtin.shell:

@@ -1,0 +1,9 @@
+pg_replication:
+  query: "SELECT * FROM pg_stat_replication;"
+  metrics:
+    - usage: "GAUGE"
+      description: "Number of replication connections"
+      labels:
+        - application_name
+        - client_addr
+        - state

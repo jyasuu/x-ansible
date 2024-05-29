@@ -11,6 +11,12 @@
     dest: /opt/docker/postgres-exporter/docker-compose.yml
     mode: '0644'
 
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: postgres-exporter/queries.yaml
+    dest: /opt/docker/postgres-exporter/queries.yaml
+    mode: '0644'
+
 - name: Start service
   ansible.builtin.shell:
     cmd: docker compose -f /opt/docker/postgres-exporter/docker-compose.yml down

@@ -11,6 +11,32 @@
     dest: /opt/docker/postgres/docker-compose.yml
     mode: '0644'
 
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: postgres/init.sql
+    dest: /opt/docker/postgres/init.sql
+    mode: '0644'
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: postgres/postgresql.conf
+    dest: /opt/docker/postgres/postgresql.conf
+    mode: '0644'
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/postgres/docker-compose.yml down -v
+  ignore_errors: true
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker compose -f /opt/docker/postgres/docker-compose.yml up -d 
+
+- name: Start service
+  ansible.builtin.shell:
+    cmd: docker cp /opt/docker/postgres/postgresql.conf postgres:/var/lib/postgresql/data/postgresql.conf
+  ignore_errors: true
+
 - name: Start service
   ansible.builtin.shell:
     cmd: docker compose -f /opt/docker/postgres/docker-compose.yml down

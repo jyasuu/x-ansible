@@ -1,0 +1,65 @@
+---
+
+- name: Install a list of packages
+  ansible.builtin.apt:
+    update_cache: true
+    package: "{{ item }}"
+    # upgrade: true
+  with_items:
+    - pwgen
+
+- name: Config max_map_count
+  sysctl:
+    name: vm.max_map_count
+    value: '262144'
+    state: present
+
+- name: New password pwgen
+  ansible.builtin.command: "pwgen -N 1 -s 96"
+  register: new_password
+
+- name: New password SHA2
+  ansible.builtin.shell: "echo -n {{ new_password.stdout }} | shasum -a 256"
+  register: new_sha2
+
+
+- name: Docker compose down
+  ansible.builtin.command: "docker compose --project-directory /opt/graylog down"
+  ignore_errors: true
+
+- name: Create a directory - journal
+  ansible.builtin.file:
+    path: "/usr/share/graylog/data/journal"
+    state: absent
+
+- name: Create a directory - journal
+  ansible.builtin.file:
+    path: "/usr/share/graylog/data/journal"
+    state: directory
+    mode: "0777"
+
+- name: Create a directory if it does not exist
+  ansible.builtin.file:
+    path: "/opt/graylog"
+    state: directory
+    mode: "0775"
+
+
+- name: Config docker compose
+  ansible.builtin.template:
+    src: "graylog/docker-compose.yml.j2"
+    dest: "/opt/graylog/docker-compose.yml"
+    mode: "0664"
+
+- name: Config docker compose env
+  ansible.builtin.template:
+    src: "graylog/.env.j2"
+    dest: "/opt/graylog/.env"
+    mode: "0664"
+  vars:
+    graylog:
+      password: "{{ new_password.stdout }}"
+      sha2: "{{ new_sha2.stdout[:-3] }}"
+
+- name: Docker compose up
+  ansible.builtin.command: "docker compose --project-directory /opt/graylog up -d"

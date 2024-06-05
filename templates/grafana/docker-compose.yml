@@ -21,6 +21,5 @@ services:
 
 networks:
   internal:
-    # driver: bridge
-    external:
-      name: internal
+    name: internal
+    external: true

@@ -1,0 +1,25 @@
+version: '3'
+services:
+  minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    container_name: minio
+    environment:
+      MINIO_ACCESS_KEY: admin
+      MINIO_SECRET_KEY: adminPass
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:19000
+      MINIO_IDENTITY_OPENID_CONFIG_URL_PRIMARY_IAM: https://gitlab.com/.well-known/openid-configuration
+      MINIO_IDENTITY_OPENID_CLIENT_ID_PRIMARY_IAM: 
+      MINIO_IDENTITY_OPENID_CLIENT_SECRET_PRIMARY_IAM: 
+      MINIO_IDENTITY_OPENID_DISPLAY_NAME_PRIMARY_IAM: Gitlab
+      MINIO_IDENTITY_OPENID_SCOPES_PRIMARY_IAM: openid,email
+      MINIO_IDENTITY_OPENID_REDIRECT_URI_DYNAMIC_PRIMARY_IAM: on
+      MINIO_IDENTITY_OPENID_CLAIM_NAME: 
+      MINIO_IDENTITY_OPENID_CLAIM_PREFIX: 
+    volumes:
+      - minio_data:/data
+    ports:
+      - "19001:19000"
+      - "19091:19090"
+    command: server /data --console-address ":19090" -address ":19000"
+volumes:
+  minio_data:

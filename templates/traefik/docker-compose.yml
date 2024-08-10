@@ -1,0 +1,144 @@
+services:
+  traefik:
+    image: "traefik:v3.1.2"
+    container_name: "traefik"
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+  whoami:
+    image: "traefik/whoami"
+    container_name: "simple-service"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+  app:
+    image: 'jyasu/dotnet-vue-spa'
+    environment:
+      - 'ASPNETCORE_ENVIRONMENT=Production'
+    volumes:
+      - ./DotnetVueSPA/App_Data:/app/App_Data:z
+      - ./appsettings.json:/app/appsettings.json:ro
+      - ./appsettings.json:/app/appsettings.Development.json:ro
+      - ./appsettings.json:/app/appsettings.Production.json:ro
+    user: "0:0"
+    depends_on:
+      - postgresql-master
+    links: 
+        - postgresql-master
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Path(`/`) || Path(`/weather`) || Path(`/todomvc`)"
+      - "traefik.http.routers.app.entrypoints=web"
+      # service myservice gets automatically assigned to router myproxy
+      # - "traefik.http.services.app.loadbalancer.server.port=8080"
+  # app4:
+  #   image: 'jyasu/dotnet-vue-spa'
+  #   environment:
+  #     - 'ASPNETCORE_ENVIRONMENT=Production'
+  #   volumes:
+  #     - ./DotnetVueSPA/App_Data:/app/App_Data:z
+  #     - ./appsettings.json:/app/appsettings.json:ro
+  #     - ./appsettings.json:/app/appsettings.Development.json:ro
+  #     - ./appsettings.json:/app/appsettings.Production.json:ro
+  #   user: "0:0"
+  #   depends_on:
+  #     - postgresql-master
+  #   links: 
+  #       - postgresql-master
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.app.rule=Host(`app4.localhost`) && PathRegexp(`^(?!.*api).*$`) || Host(`literate-space-meme-97qpjr794g9h6qw-80.app.github.dev`)  && PathRegexp(`^(?!.*api).*$`)"
+  #     - "traefik.http.routers.app4.entrypoints=web"
+  #     # service myservice gets automatically assigned to router myproxy
+  #     - "traefik.http.services.app4.loadbalancer.server.port=8080"
+  app1:
+    image: 'jyasu/dotnet-vue-spa'
+    environment:
+      - 'ASPNETCORE_ENVIRONMENT=Production'
+    volumes:
+      - ./DotnetVueSPA/App_Data:/app/App_Data:z
+      - ./appsettings.json:/app/appsettings.json:ro
+      - ./appsettings.json:/app/appsettings.Development.json:ro
+      - ./appsettings.json:/app/appsettings.Production.json:ro
+    user: "0:0"
+    depends_on:
+      - postgresql-master
+    links: 
+        - postgresql-master
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app1.rule=PathPrefix(`/api/GetWeatherForecast`)"
+      - "traefik.http.routers.app1.entrypoints=web"
+  app2:
+    image: 'jyasu/dotnet-vue-spa'
+    environment:
+      - 'ASPNETCORE_ENVIRONMENT=Production'
+    volumes:
+      - ./DotnetVueSPA/App_Data:/app/App_Data:z
+      - ./appsettings.json:/app/appsettings.json:ro
+      - ./appsettings.json:/app/appsettings.Development.json:ro
+      - ./appsettings.json:/app/appsettings.Production.json:ro
+    user: "0:0"
+    depends_on:
+      - postgresql-master
+    links: 
+        - postgresql-master
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app2.rule=PathPrefix(`/api/QueryTodos`)"
+      - "traefik.http.routers.app2.entrypoints=web"
+  postgresql-master:
+    image: 'bitnami/postgresql:latest'
+    ports:
+      - 5433:5432
+    volumes:
+      - 'postgresql_master_data:/bitnami/postgresql'
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_USERNAME=demo_user
+      - POSTGRESQL_PASSWORD=demo_password
+      - POSTGRESQL_DATABASE=dotnet_demo
+      - ALLOW_EMPTY_PASSWORD=yes
+      - POSTGRESQL_SYNCHRONOUS_COMMIT_MODE=on
+      - POSTGRESQL_NUM_SYNCHRONOUS_REPLICAS=1
+  postgresql-slave:
+    image: 'bitnami/postgresql:latest'
+    depends_on:
+      - postgresql-master
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_MASTER_HOST=postgresql-master
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - POSTGRESQL_USERNAME=demo_user
+      - POSTGRESQL_PASSWORD=demo_password
+      - ALLOW_EMPTY_PASSWORD=yes
+  postgresql-slave2:
+    image: 'bitnami/postgresql:latest'
+    depends_on:
+      - postgresql-master
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_MASTER_HOST=postgresql-master
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - POSTGRESQL_USERNAME=demo_user
+      - POSTGRESQL_PASSWORD=demo_password
+      - ALLOW_EMPTY_PASSWORD=yes
+
+
+volumes:
+  postgresql_master_data:

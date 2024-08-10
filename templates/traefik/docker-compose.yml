@@ -18,7 +18,7 @@ services:
     container_name: "simple-service"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"
+      - "traefik.http.routers.whoami.rule=Header(`Referer`, `https://literate-space-meme-97qpjr794g9h6qw.github.dev/`)"
       - "traefik.http.routers.whoami.entrypoints=web"
   app:
     image: 'jyasu/dotnet-vue-spa'
@@ -36,30 +36,30 @@ services:
         - postgresql-master
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Path(`/`) || Path(`/weather`) || Path(`/todomvc`)"
+      - "traefik.http.routers.app.rule=Path(`/weather`) || Path(`/todomvc`)"
       - "traefik.http.routers.app.entrypoints=web"
       # service myservice gets automatically assigned to router myproxy
-      # - "traefik.http.services.app.loadbalancer.server.port=8080"
-  # app4:
-  #   image: 'jyasu/dotnet-vue-spa'
-  #   environment:
-  #     - 'ASPNETCORE_ENVIRONMENT=Production'
-  #   volumes:
-  #     - ./DotnetVueSPA/App_Data:/app/App_Data:z
-  #     - ./appsettings.json:/app/appsettings.json:ro
-  #     - ./appsettings.json:/app/appsettings.Development.json:ro
-  #     - ./appsettings.json:/app/appsettings.Production.json:ro
-  #   user: "0:0"
-  #   depends_on:
-  #     - postgresql-master
-  #   links: 
-  #       - postgresql-master
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.app.rule=Host(`app4.localhost`) && PathRegexp(`^(?!.*api).*$`) || Host(`literate-space-meme-97qpjr794g9h6qw-80.app.github.dev`)  && PathRegexp(`^(?!.*api).*$`)"
-  #     - "traefik.http.routers.app4.entrypoints=web"
-  #     # service myservice gets automatically assigned to router myproxy
-  #     - "traefik.http.services.app4.loadbalancer.server.port=8080"
+      - "traefik.http.services.app.loadbalancer.server.port=8080"
+  app4:
+    image: 'jyasu/dotnet-vue-spa'
+    environment:
+      - 'ASPNETCORE_ENVIRONMENT=Production'
+    volumes:
+      - ./DotnetVueSPA/App_Data:/app/App_Data:z
+      - ./appsettings.json:/app/appsettings.json:ro
+      - ./appsettings.json:/app/appsettings.Development.json:ro
+      - ./appsettings.json:/app/appsettings.Production.json:ro
+    user: "0:0"
+    depends_on:
+      - postgresql-master
+    links: 
+        - postgresql-master
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Path(`/weather`) || Path(`/todomvc`)"
+      - "traefik.http.routers.app.entrypoints=web"
+      # service myservice gets automatically assigned to router myproxy
+      - "traefik.http.services.app.loadbalancer.server.port=8080"
   app1:
     image: 'jyasu/dotnet-vue-spa'
     environment:

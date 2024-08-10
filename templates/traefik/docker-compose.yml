@@ -18,8 +18,19 @@ services:
     container_name: "simple-service"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Header(`Referer`, `https://literate-space-meme-97qpjr794g9h6qw.github.dev/`)"
+      - "traefik.http.routers.whoami.rule=PathPrefix(`/whoami`)"
       - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.middlewares.whoami-replacepathregex.replacepathregex.regex=^/whoami/(.*)"
+      - "traefik.http.middlewares.whoami-replacepathregex.replacepathregex.replacement=/$1"
+      - "traefik.http.routers.whoami.middlewares=whoami-replacepathregex"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+  # whoami2:
+  #   image: "traefik/whoami"
+  #   container_name: "simple-service2"
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.whoami2.rule=Path(`/`)"
+  #     - "traefik.http.routers.whoami2.entrypoints=web"
   app:
     image: 'jyasu/dotnet-vue-spa'
     environment:
@@ -36,7 +47,7 @@ services:
         - postgresql-master
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Path(`/weather`) || Path(`/todomvc`)"
+      - "traefik.http.routers.app.rule=Header(`X-Forwarded-Server`, `3a8a287af9ff`) && !PathPrefix(`/api`) && !PathPrefix(`/whoami`)"
       - "traefik.http.routers.app.entrypoints=web"
       # service myservice gets automatically assigned to router myproxy
       - "traefik.http.services.app.loadbalancer.server.port=8080"
@@ -56,7 +67,7 @@ services:
         - postgresql-master
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Path(`/weather`) || Path(`/todomvc`)"
+      - "traefik.http.routers.app.rule=Header(`X-Forwarded-Server`, `3a8a287af9ff`) && !PathPrefix(`/api`) && !PathPrefix(`/whoami`)"
       - "traefik.http.routers.app.entrypoints=web"
       # service myservice gets automatically assigned to router myproxy
       - "traefik.http.services.app.loadbalancer.server.port=8080"

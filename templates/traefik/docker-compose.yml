@@ -2,31 +2,18 @@ services:
   traefik:
     image: "traefik:v3.1.2"
     container_name: "traefik"
-    command:
-      - "--log.level=DEBUG"
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entryPoints.web.address=:80"
-      - "--entryPoints.metrics.address=:8082"
-      - "--metrics.prometheus.entryPoint=metrics"
     ports:
       - "80:80"
       - "8080:8080"
       - "8082:8082"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.toml:/traefik.toml:ro"
+      - "./dynamic.toml:/dynamic.toml:ro"
+      - "./dynamic.yaml:/dynamic.yaml:ro"
   whoami:
     image: "traefik/whoami"
     container_name: "simple-service"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=PathPrefix(`/whoami`)"
-      - "traefik.http.routers.whoami.entrypoints=web"
-      - "traefik.http.middlewares.whoami-replacepathregex.replacepathregex.regex=^/whoami/(.*)"
-      - "traefik.http.middlewares.whoami-replacepathregex.replacepathregex.replacement=/$1"
-      - "traefik.http.routers.whoami.middlewares=whoami-replacepathregex"
-      - "traefik.http.services.whoami.loadbalancer.server.port=80"
   # whoami2:
   #   image: "traefik/whoami"
   #   container_name: "simple-service2"
@@ -48,12 +35,6 @@ services:
       - postgresql-master
     links: 
         - postgresql-master
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Header(`X-Forwarded-Server`, `3a8a287af9ff`) && !PathPrefix(`/api`) && !PathPrefix(`/whoami`)"
-      - "traefik.http.routers.app.entrypoints=web"
-      # service myservice gets automatically assigned to router myproxy
-      - "traefik.http.services.app.loadbalancer.server.port=8080"
   app4:
     image: 'jyasu/dotnet-vue-spa'
     environment:
@@ -68,12 +49,6 @@ services:
       - postgresql-master
     links: 
         - postgresql-master
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Header(`X-Forwarded-Server`, `3a8a287af9ff`) && !PathPrefix(`/api`) && !PathPrefix(`/whoami`)"
-      - "traefik.http.routers.app.entrypoints=web"
-      # service myservice gets automatically assigned to router myproxy
-      - "traefik.http.services.app.loadbalancer.server.port=8080"
   app1:
     image: 'jyasu/dotnet-vue-spa'
     environment:
@@ -88,10 +63,6 @@ services:
       - postgresql-master
     links: 
         - postgresql-master
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.app1.rule=PathPrefix(`/api/GetWeatherForecast`)"
-      - "traefik.http.routers.app1.entrypoints=web"
   app2:
     image: 'jyasu/dotnet-vue-spa'
     environment:
@@ -106,10 +77,6 @@ services:
       - postgresql-master
     links: 
         - postgresql-master
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.app2.rule=PathPrefix(`/api/QueryTodos`)"
-      - "traefik.http.routers.app2.entrypoints=web"
   postgresql-master:
     image: 'bitnami/postgresql:latest'
     ports:

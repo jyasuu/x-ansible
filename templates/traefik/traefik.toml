@@ -1,0 +1,24 @@
+[entryPoints]
+  [entryPoints.web]
+    address = ":80"
+  [entryPoints.metrics]
+    address = ":8082"
+
+[providers]
+  [providers.docker]
+    exposedByDefault = false
+  [providers.file]
+    filename = "/dynamic.toml"
+
+[log]
+  level = "DEBUG"
+
+[api]
+  insecure = true
+
+[metrics]
+  [metrics.prometheus]
+    entryPoint = "metrics"
+
+
+

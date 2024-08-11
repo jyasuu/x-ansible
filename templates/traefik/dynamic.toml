@@ -1,0 +1,55 @@
+[http.routers]
+  [http.routers.whoami]
+    rule = "PathPrefix(`/whoami`)"
+    entryPoints = ["web"]
+    service = "whoami-service"
+    middlewares = ["whoami-replacepathregex"]
+
+  [http.routers.dummy]
+    rule = "PathPrefix(`/v4/articles`)"
+    entryPoints = ["web"]
+    service = "dummy-service"   
+
+  [http.routers.app]
+    rule = "Header(`X-Forwarded-Server`, `ef951d23bb42`) && !PathPrefix(`/api`) && !PathPrefix(`/whoami`) && !PathPrefix(`/v4/articles`)"
+    entryPoints = ["web"]
+    service = "app-service"
+
+  [http.routers.app1]
+    rule = "PathPrefix(`/api/GetWeatherForecast`)"
+    entryPoints = ["web"]
+    service = "app1-service"
+
+  [http.routers.app2]
+    rule = "PathPrefix(`/api/QueryTodos`)"
+    entryPoints = ["web"]
+    service = "app2-service"
+
+[http.services]
+  [http.services.whoami-service.loadBalancer]
+    [[http.services.whoami-service.loadBalancer.servers]]
+      url = "http://simple-service:80"
+
+  [http.services.dummy-service.loadBalancer]
+    [[http.services.dummy-service.loadBalancer.servers]]
+      url = "https://api.spaceflightnewsapi.net"
+
+  [http.services.app-service.loadBalancer]
+    [[http.services.app-service.loadBalancer.servers]]
+      url = "http://app:8080"
+    [[http.services.app-service.loadBalancer.servers]]
+      url = "http://app4:8080"
+
+
+  [http.services.app1-service.loadBalancer]
+    [[http.services.app1-service.loadBalancer.servers]]
+      url = "http://app1:8080"
+
+  [http.services.app2-service.loadBalancer]
+    [[http.services.app2-service.loadBalancer.servers]]
+      url = "http://app2:8080"
+
+[http.middlewares]
+  [http.middlewares.whoami-replacepathregex.replacePathRegex]
+    regex = "^/whoami/(.*)"
+    replacement = "/$1"

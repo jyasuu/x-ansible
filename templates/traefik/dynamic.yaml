@@ -1,0 +1,66 @@
+http:
+  routers:
+    whoami:
+      rule: "PathPrefix(`/whoami`)"
+      entryPoints:
+        - web
+      service: whoami-service
+      middlewares:
+        - whoami-replacepathregex
+
+    dummy:
+      rule: "PathPrefix(`/v4/articles`)"
+      entryPoints:
+        - web
+      service: dummy-service
+
+    app:
+      rule: "Header(`X-Forwarded-Server`, `3a8a287af9ff`) && !PathPrefix(`/api`) && !PathPrefix(`/whoami`)"
+      entryPoints:
+        - web
+      service: app-service
+
+    app1:
+      rule: "PathPrefix(`/api/GetWeatherForecast`)"
+      entryPoints:
+        - web
+      service: app1-service
+
+    app2:
+      rule: "PathPrefix(`/api/QueryTodos`)"
+      entryPoints:
+        - web
+      service: app2-service
+
+  services:
+    whoami-service:
+      loadBalancer:
+        servers:
+          - url: "http://simple-service:80"
+
+    dummy-service:
+      loadBalancer:
+        servers:
+          - url: "https://api.spaceflightnewsapi.net"
+
+    app-service:
+      loadBalancer:
+        servers:
+          - url: "http://app:8080"
+          - url: "http://app4:8080"
+
+    app1-service:
+      loadBalancer:
+        servers:
+          - url: "http://app1:8080"
+
+    app2-service:
+      loadBalancer:
+        servers:
+          - url: "http://app2:8080"
+
+  middlewares:
+    whoami-replacepathregex:
+      replacePathRegex:
+        regex: "^/whoami/(.*)"
+        replacement: "/$1"

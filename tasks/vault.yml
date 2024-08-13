@@ -27,9 +27,18 @@
 
 - name: Init 
   ansible.builtin.shell:
-    cmd: docker exec -it prodvault vault operator init -n 1 -t 1
+    cmd: docker exec -it prodvault vault operator init # -n 1 -t 1
+  register: result
 
-    
+- name: Initialize vault logs
+  ansible.builtin.debug:
+    var: result.stdout
+
+- name: Write the apache config file
+  ansible.builtin.template:
+    src: vault_init_stdout
+    dest: /opt/docker/vault/vault_init_stdout
+
 
 - name: Unseal  
   ansible.builtin.shell:
@@ -122,3 +131,64 @@
     docker exec -it prodvault vault write auth/jwt/config oidc_discovery_url="https://gitlab.com" bound_issuer="https://gitlab.com"
 
 
+
+
+
+
+
+# vault write auth/jwt/config \
+#     oidc_discovery_url="https://gitlab.com" \
+#     bound_issuer="https://gitlab.com"
+
+
+
+# vault write auth/jwt/config  -<<EOF
+# {
+#   "oidc_discovery_url": "https://gitlab.com",
+#   "bound_issuer": "https://gitlab.com"
+# }
+# EOF
+
+
+# vault write auth/jwt/role/gitlab-demo-role -<<EOF
+# {
+#   "user_claim": "sub",
+#   "bound_audiences": "gitlab.com",
+#   "role_type": "jwt",
+#   "policies": "gitlab-demo-policy",
+#   "ttl": "1h",
+#   "bound_claims": { "groups": ["devops"] }
+# }
+# EOF
+
+
+# vault policy write gitlab-demo-policy -<<EOF
+# path "secret/*" {
+#   capabilities = ["create", "read", "update", "delete", "list"]
+# }
+# EOF
+
+# vault write auth/jwt/role/gitlab-demo-role - <<EOF
+# {
+#   "role_type": "jwt",
+#   "policies": ["gitlab-demo-policy"],
+#   "token_explicit_max_ttl": 60,
+#   "user_claim": "user_email",
+#   "bound_audiences": "https://gitlab.com",
+#   "groups_claim": "groups_direct",
+#   "bound_claims": {
+#     "project_id": "1169",
+#     "ref": "main",
+#     "ref_type": "branch"
+#   }
+# }
+# EOF
+
+
+# vault secrets enable -path=secret kv
+
+
+# export VAULT_ADDR=https://vault.example.com
+# export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=gitlab-demo-role jwt=$CI_JOB_JWT_V2)"
+# vault kv put secret/data/gitlab-demo sha=$CI_COMMIT_SHA
+# vault kv get secret/data/gitlab-demo

@@ -4,26 +4,31 @@
     entryPoints = ["web"]
     service = "whoami-service"
     middlewares = ["whoami-replacepathregex"]
+    {# [http.routers.whoami.tls] #}
 
   [http.routers.dummy]
     rule = "PathPrefix(`/v4/articles`)"
     entryPoints = ["web"]
     service = "dummy-service"   
+    {# [http.routers.dummy.tls] #}
 
   [http.routers.app]
     rule = "Header(`X-Forwarded-Server`, `ef951d23bb42`) && !PathPrefix(`/api`) && !PathPrefix(`/whoami`) && !PathPrefix(`/v4/articles`)"
     entryPoints = ["web"]
     service = "app-service"
+    {# [http.routers.app.tls] #}
 
   [http.routers.app1]
     rule = "PathPrefix(`/api/GetWeatherForecast`)"
     entryPoints = ["web"]
     service = "app1-service"
+    {# [http.routers.app1.tls] #}
 
   [http.routers.app2]
     rule = "PathPrefix(`/api/QueryTodos`)"
     entryPoints = ["web"]
     service = "app2-service"
+    {# [http.routers.app2.tls] #}
 
 [http.services]
   [http.services.whoami-service.loadBalancer]
@@ -53,3 +58,9 @@
   [http.middlewares.whoami-replacepathregex.replacePathRegex]
     regex = "^/whoami/(.*)"
     replacement = "/$1"
+
+
+{# [[tls.certificates]]
+  certFile = "/certs/server.crt"
+  keyFile = "/certs/server.key"
+  stores = ["default"] #}

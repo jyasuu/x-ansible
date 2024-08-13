@@ -150,16 +150,6 @@
 # EOF
 
 
-# vault write auth/jwt/role/gitlab-demo-role -<<EOF
-# {
-#   "user_claim": "sub",
-#   "bound_audiences": "gitlab.com",
-#   "role_type": "jwt",
-#   "policies": "gitlab-demo-policy",
-#   "ttl": "1h",
-#   "bound_claims": { "groups": ["devops"] }
-# }
-# EOF
 
 
 # vault policy write gitlab-demo-policy -<<EOF
@@ -180,6 +170,20 @@
 #     "project_id": "1169",
 #     "ref": "main",
 #     "ref_type": "branch"
+#   }
+# }
+# EOF
+
+
+# vault write auth/jwt/role/pcggit-demo-role - <<EOF
+# {
+#   "role_type": "jwt",
+#   "policies": ["pcggit-demo-policy"],
+#   "token_explicit_max_ttl": 60,
+#   "user_claim": "user_email",
+#   "bound_audiences": "https://pcggit.pouchen.com",
+#   "groups_claim": "groups_direct",
+#   "bound_claims": { "groups_direct": ["devops"] }
 #   }
 # }
 # EOF

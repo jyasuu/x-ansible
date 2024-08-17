@@ -219,3 +219,35 @@
 #     max_ttl="24h"
 
 # vault read database/creds/my-role
+
+
+
+# vault secrets enable transit
+
+# vault write -f transit/keys/orders
+
+# vault policy write app-orders -<<EOF
+# path "transit/encrypt/orders" {
+#    capabilities = [ "update" ]
+# }
+# path "transit/decrypt/orders" {
+#    capabilities = [ "update" ]
+# }
+# EOF
+
+
+# vault token create -policy=app-orders
+
+# export APP_ORDER_TOKEN=$(vault token create \
+#     -policy=app-orders \
+#     -format=json | jq -r '.auth | .client_token')
+
+# base64 <<< "4111 1111 1111 1111"
+
+# VAULT_TOKEN=$APP_ORDER_TOKEN vault write transit/encrypt/orders \
+#     plaintext=NDExMSAxMTExIDExMTEgMTExMQo=
+
+# VAULT_TOKEN=$APP_ORDER_TOKEN vault write \
+#     transit/decrypt/orders ciphertext=vault:v1:q221N7IG9XZYTQPqJ4EE+ppUcp5TBVpO3Xfybqt+ThjTTxvVAZhzrrhkzaCmHOSY
+
+# base64 --decode <<< "NDExMSAxMTExIDExMTEgMTExMQo="

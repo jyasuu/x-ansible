@@ -251,3 +251,22 @@
 #     transit/decrypt/orders ciphertext=vault:v1:q221N7IG9XZYTQPqJ4EE+ppUcp5TBVpO3Xfybqt+ThjTTxvVAZhzrrhkzaCmHOSY
 
 # base64 --decode <<< "NDExMSAxMTExIDExMTEgMTExMQo="
+
+
+# vault auth enable oidc
+
+# vault write auth/oidc/config \
+#   oidc_discovery_url="https://gitlab.com" \
+#   oidc_client_id="{{ oidc_client_id }}" \
+#   oidc_client_secret="{{ oidc_client_secret }}" \
+#   default_role="gitlab"
+
+
+# vault policy write reader reader.hcl
+
+# vault write auth/oidc/role/gitlab \
+#   user_claim="email" \
+#   bound_audiences={{ oidc_client_id }} \
+#   allowed_redirect_uris="https://vault-test/ui/vault/auth/oidc/oidc/callback" \
+#   policies=reader \
+#   ttl=1h

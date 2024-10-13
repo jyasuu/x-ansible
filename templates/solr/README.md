@@ -1,6 +1,8 @@
 # Solr
 
 - [Solr](https://solr.apache.org/guide/solr/latest/getting-started/tutorial-five-minutes.html)
+- [Monitoring](https://solr.apache.org/guide/solr/latest/deployment-guide/monitoring-with-prometheus-and-grafana.html)
+- [Grafana Dashboard](https://grafana.com/grafana/dashboards/12456-solr-dashboard/)
 
 
 ```sh

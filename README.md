@@ -24,3 +24,9 @@ https://grafana.com/grafana/dashboards/9628-postgresql-database/
 https://grafana.com/grafana/dashboards/18278-uptime-kuma/
 https://grafana.com/grafana/dashboards/18667-uptime-kuma-metrics/
 https://grafana.com/grafana/dashboards/13639-logs-app/
+
+
+export ANSIBLE_CALLBACKS_ENABLED=junit
+export JUNIT_OUTPUT_DIR="/tmp"
+export ANSIBLE_LOAD_CALLBACK_PLUGINS=1
+export DEFAULT_CALLBACK_WHITELIST=[junit]

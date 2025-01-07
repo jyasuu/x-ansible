@@ -1,0 +1,31 @@
+
+- name: Test connection to IP and port
+  wait_for:
+    host: "{{ item.ip }}"
+    port: "{{ item.port }}"
+    timeout: 3
+  register: result
+  failed_when: false
+  loop: "{{ ip_port_list }}"
+  loop_control:
+    label: "{{ item.ip }}:{{ item.port }}"
+  ignore_errors: true
+
+# - name: output
+#   ansible.builtin.debug:
+#     var: result
+
+# - name: Generate JUnit report
+#   copy:
+#     content: |
+#       <?xml version="1.0" encoding="UTF-8"?>
+#       <testsuite name="IP Port Check" tests="{{ result.results | length }}">
+#         {% for item in result.results %}
+#         <testcase classname="PortCheck" name="{{ item.item.ip }}:{{ item.item.port }}">
+#           {% if item.failed %}
+#           <failure message="Connection failed">Failed to connect to {{ item.item.ip }}:{{ item.item.port }}</failure>
+#           {% endif %}
+#         </testcase>
+#         {% endfor %}
+#       </testsuite>
+#     dest: "{{ report_dest }}/junit_report.xml"

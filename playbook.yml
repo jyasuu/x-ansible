@@ -4,9 +4,22 @@
   remote_user: root
   become: true
 
+
   tasks:
-    - name: Get artifact
-      ansible.builtin.include_role:
-        name: docker-install
+    - include_tasks: tasks/check_ports.yml
       vars:
-        # base_url: "https://example.com"
+        ip_port_list:
+          - ip: "stun.l.google.com"
+            port: 19302
+          # - ip: "stun1.l.google.com"
+          #   port: 19302
+          # - ip: "stun2.l.google.com"
+          #   port: 19302
+          # - ip: "stun3.l.google.com"
+          #   port: 19302
+          # - ip: "stun4.l.google.com"
+          #   port: 19302
+          # - ip: "localhost"
+          #   port: 19302
+        report_dest: "/tmp"
+

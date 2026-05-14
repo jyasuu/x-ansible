@@ -1,0 +1,984 @@
+# ============================================================
+# postgres_exporter custom query.yaml
+# PostgreSQL 15+ | All metrics: connections, query perf,
+# table/index stats, replication/WAL, locks, bloat
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. CONNECTIONS & ACTIVITY
+# ------------------------------------------------------------
+
+pg_connections_by_state:
+  query: |
+    SELECT
+      datname,
+      state,
+      count(*) AS count,
+      max(EXTRACT(EPOCH FROM (now() - state_change)))::float AS max_duration_seconds
+    FROM pg_stat_activity
+    WHERE datname IS NOT NULL
+    GROUP BY datname, state
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - state:
+        usage: LABEL
+        description: "Connection state (active, idle, idle in transaction, etc.)"
+    - count:
+        usage: GAUGE
+        description: "Number of connections in this state"
+    - max_duration_seconds:
+        usage: GAUGE
+        description: "Maximum duration (seconds) of connections in this state"
+
+pg_connections_max:
+  query: |
+    SELECT
+      (SELECT setting::int FROM pg_settings WHERE name = 'max_connections') AS max_connections,
+      count(*) AS used_connections,
+      (SELECT setting::int FROM pg_settings WHERE name = 'max_connections') - count(*) AS available_connections
+    FROM pg_stat_activity
+  metrics:
+    - max_connections:
+        usage: GAUGE
+        description: "Maximum allowed connections (max_connections GUC)"
+    - used_connections:
+        usage: GAUGE
+        description: "Currently used connections"
+    - available_connections:
+        usage: GAUGE
+        description: "Remaining available connections"
+
+pg_long_running_queries:
+  query: |
+    SELECT
+      datname,
+      usename,
+      state,
+      count(*) AS count,
+      max(EXTRACT(EPOCH FROM (now() - query_start)))::float AS max_duration_seconds
+    FROM pg_stat_activity
+    WHERE state != 'idle'
+      AND query_start IS NOT NULL
+      AND EXTRACT(EPOCH FROM (now() - query_start)) > 30
+    GROUP BY datname, usename, state
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - usename:
+        usage: LABEL
+        description: "User name"
+    - state:
+        usage: LABEL
+        description: "Query state"
+    - count:
+        usage: GAUGE
+        description: "Number of long-running queries (>30s)"
+    - max_duration_seconds:
+        usage: GAUGE
+        description: "Max duration of long-running queries in seconds"
+
+pg_waiting_queries:
+  query: |
+    SELECT
+      datname,
+      wait_event_type,
+      wait_event,
+      count(*) AS count
+    FROM pg_stat_activity
+    WHERE wait_event IS NOT NULL
+      AND state != 'idle'
+    GROUP BY datname, wait_event_type, wait_event
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - wait_event_type:
+        usage: LABEL
+        description: "Type of wait event"
+    - wait_event:
+        usage: LABEL
+        description: "Wait event name"
+    - count:
+        usage: GAUGE
+        description: "Number of queries waiting on this event"
+
+# ------------------------------------------------------------
+# 2. QUERY PERFORMANCE (pg_stat_statements)
+# Requires: CREATE EXTENSION pg_stat_statements;
+# ------------------------------------------------------------
+
+pg_stat_statements_top:
+  query: |
+    SELECT
+      db.datname,
+      pss.userid::regrole::text AS username,
+      pss.queryid::text AS queryid,
+      pss.calls,
+      pss.total_exec_time / 1000.0 AS total_exec_time_seconds,
+      pss.mean_exec_time / 1000.0 AS mean_exec_time_seconds,
+      pss.max_exec_time / 1000.0 AS max_exec_time_seconds,
+      pss.stddev_exec_time / 1000.0 AS stddev_exec_time_seconds,
+      pss.rows,
+      pss.shared_blks_hit,
+      pss.shared_blks_read,
+      pss.shared_blks_dirtied,
+      pss.shared_blks_written,
+      pss.local_blks_hit,
+      pss.local_blks_read,
+      pss.blk_read_time / 1000.0 AS blk_read_time_seconds,
+      pss.blk_write_time / 1000.0 AS blk_write_time_seconds,
+      pss.wal_records,
+      pss.wal_bytes
+    FROM pg_stat_statements pss
+    JOIN pg_database db ON db.oid = pss.dbid
+    WHERE pss.calls > 0
+    ORDER BY pss.total_exec_time DESC
+    LIMIT 50
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - username:
+        usage: LABEL
+        description: "User who ran the query"
+    - queryid:
+        usage: LABEL
+        description: "Query identifier hash"
+    - calls:
+        usage: GAUGE
+        description: "Number of times the query was executed"
+    - total_exec_time_seconds:
+        usage: GAUGE
+        description: "Total execution time in seconds"
+    - mean_exec_time_seconds:
+        usage: GAUGE
+        description: "Mean execution time in seconds"
+    - max_exec_time_seconds:
+        usage: GAUGE
+        description: "Max execution time in seconds"
+    - stddev_exec_time_seconds:
+        usage: GAUGE
+        description: "Stddev of execution time in seconds"
+    - rows:
+        usage: GAUGE
+        description: "Total rows returned or affected"
+    - shared_blks_hit:
+        usage: GAUGE
+        description: "Shared block cache hits"
+    - shared_blks_read:
+        usage: GAUGE
+        description: "Shared blocks read from disk"
+    - shared_blks_dirtied:
+        usage: GAUGE
+        description: "Shared blocks dirtied"
+    - shared_blks_written:
+        usage: GAUGE
+        description: "Shared blocks written"
+    - local_blks_hit:
+        usage: GAUGE
+        description: "Local block cache hits"
+    - local_blks_read:
+        usage: GAUGE
+        description: "Local blocks read from disk"
+    - blk_read_time_seconds:
+        usage: GAUGE
+        description: "Time spent reading blocks in seconds"
+    - blk_write_time_seconds:
+        usage: GAUGE
+        description: "Time spent writing blocks in seconds"
+    - wal_records:
+        usage: GAUGE
+        description: "WAL records generated"
+    - wal_bytes:
+        usage: GAUGE
+        description: "WAL bytes generated"
+
+pg_stat_statements_summary:
+  query: |
+    SELECT
+      db.datname,
+      count(*) AS total_unique_queries,
+      sum(pss.calls) AS total_calls,
+      sum(pss.total_exec_time) / 1000.0 AS total_exec_time_seconds,
+      sum(pss.rows) AS total_rows,
+      sum(pss.shared_blks_hit) AS total_blks_hit,
+      sum(pss.shared_blks_read) AS total_blks_read,
+      CASE WHEN sum(pss.shared_blks_hit + pss.shared_blks_read) > 0
+           THEN sum(pss.shared_blks_hit)::float / sum(pss.shared_blks_hit + pss.shared_blks_read)
+           ELSE 0 END AS cache_hit_ratio
+    FROM pg_stat_statements pss
+    JOIN pg_database db ON db.oid = pss.dbid
+    GROUP BY db.datname
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - total_unique_queries:
+        usage: GAUGE
+        description: "Number of unique query fingerprints tracked"
+    - total_calls:
+        usage: GAUGE
+        description: "Total number of query executions"
+    - total_exec_time_seconds:
+        usage: GAUGE
+        description: "Total execution time across all queries in seconds"
+    - total_rows:
+        usage: GAUGE
+        description: "Total rows returned or affected"
+    - total_blks_hit:
+        usage: GAUGE
+        description: "Total shared block cache hits"
+    - total_blks_read:
+        usage: GAUGE
+        description: "Total shared blocks read from disk"
+    - cache_hit_ratio:
+        usage: GAUGE
+        description: "Buffer cache hit ratio (0-1)"
+
+# ------------------------------------------------------------
+# 3. TABLE & INDEX STATISTICS
+# ------------------------------------------------------------
+
+pg_table_stats:
+  query: |
+    SELECT
+      schemaname,
+      relname AS tablename,
+      seq_scan,
+      seq_tup_read,
+      idx_scan,
+      idx_tup_fetch,
+      n_tup_ins,
+      n_tup_upd,
+      n_tup_del,
+      n_tup_hot_upd,
+      n_live_tup,
+      n_dead_tup,
+      n_mod_since_analyze,
+      EXTRACT(EPOCH FROM last_vacuum)::float AS last_vacuum_epoch,
+      EXTRACT(EPOCH FROM last_autovacuum)::float AS last_autovacuum_epoch,
+      EXTRACT(EPOCH FROM last_analyze)::float AS last_analyze_epoch,
+      EXTRACT(EPOCH FROM last_autoanalyze)::float AS last_autoanalyze_epoch,
+      vacuum_count,
+      autovacuum_count,
+      analyze_count,
+      autoanalyze_count
+    FROM pg_stat_user_tables
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - tablename:
+        usage: LABEL
+        description: "Table name"
+    - seq_scan:
+        usage: GAUGE
+        description: "Number of sequential scans"
+    - seq_tup_read:
+        usage: GAUGE
+        description: "Rows read via sequential scans"
+    - idx_scan:
+        usage: GAUGE
+        description: "Number of index scans"
+    - idx_tup_fetch:
+        usage: GAUGE
+        description: "Rows fetched via index scans"
+    - n_tup_ins:
+        usage: GAUGE
+        description: "Rows inserted"
+    - n_tup_upd:
+        usage: GAUGE
+        description: "Rows updated"
+    - n_tup_del:
+        usage: GAUGE
+        description: "Rows deleted"
+    - n_tup_hot_upd:
+        usage: GAUGE
+        description: "Rows updated via HOT"
+    - n_live_tup:
+        usage: GAUGE
+        description: "Estimated live rows"
+    - n_dead_tup:
+        usage: GAUGE
+        description: "Estimated dead rows"
+    - n_mod_since_analyze:
+        usage: GAUGE
+        description: "Rows modified since last analyze"
+    - last_vacuum_epoch:
+        usage: GAUGE
+        description: "Epoch of last manual vacuum"
+    - last_autovacuum_epoch:
+        usage: GAUGE
+        description: "Epoch of last autovacuum"
+    - last_analyze_epoch:
+        usage: GAUGE
+        description: "Epoch of last manual analyze"
+    - last_autoanalyze_epoch:
+        usage: GAUGE
+        description: "Epoch of last autoanalyze"
+    - vacuum_count:
+        usage: GAUGE
+        description: "Number of manual vacuums"
+    - autovacuum_count:
+        usage: GAUGE
+        description: "Number of autovacuums"
+    - analyze_count:
+        usage: GAUGE
+        description: "Number of manual analyzes"
+    - autoanalyze_count:
+        usage: GAUGE
+        description: "Number of autoanalyzes"
+
+pg_table_size:
+  query: |
+    SELECT
+      n.nspname AS schemaname,
+      c.relname AS tablename,
+      pg_total_relation_size(c.oid) AS total_bytes,
+      pg_relation_size(c.oid) AS table_bytes,
+      pg_indexes_size(c.oid) AS indexes_bytes,
+      pg_total_relation_size(c.oid) - pg_relation_size(c.oid) - pg_indexes_size(c.oid) AS toast_bytes
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'r'
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - tablename:
+        usage: LABEL
+        description: "Table name"
+    - total_bytes:
+        usage: GAUGE
+        description: "Total size of table including indexes and TOAST (bytes)"
+    - table_bytes:
+        usage: GAUGE
+        description: "Size of the table itself (bytes)"
+    - indexes_bytes:
+        usage: GAUGE
+        description: "Total size of all indexes (bytes)"
+    - toast_bytes:
+        usage: GAUGE
+        description: "Size of TOAST storage (bytes)"
+
+pg_index_stats:
+  query: |
+    SELECT
+      schemaname,
+      relname AS tablename,
+      indexrelname AS indexname,
+      idx_scan,
+      idx_tup_read,
+      idx_tup_fetch,
+      pg_relation_size(indexrelid) AS index_size_bytes
+    FROM pg_stat_user_indexes
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - tablename:
+        usage: LABEL
+        description: "Table name"
+    - indexname:
+        usage: LABEL
+        description: "Index name"
+    - idx_scan:
+        usage: GAUGE
+        description: "Number of index scans"
+    - idx_tup_read:
+        usage: GAUGE
+        description: "Rows read by index scans"
+    - idx_tup_fetch:
+        usage: GAUGE
+        description: "Rows fetched using this index"
+    - index_size_bytes:
+        usage: GAUGE
+        description: "Index size in bytes"
+
+pg_unused_indexes:
+  query: |
+    SELECT
+      schemaname,
+      relname AS tablename,
+      indexrelname AS indexname,
+      idx_scan,
+      pg_relation_size(indexrelid) AS index_size_bytes
+    FROM pg_stat_user_indexes
+    WHERE idx_scan = 0
+      AND schemaname NOT IN ('pg_catalog', 'information_schema')
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - tablename:
+        usage: LABEL
+        description: "Table name"
+    - indexname:
+        usage: LABEL
+        description: "Index name"
+    - idx_scan:
+        usage: GAUGE
+        description: "Always 0 for unused indexes"
+    - index_size_bytes:
+        usage: GAUGE
+        description: "Wasted space of unused index in bytes"
+
+pg_statio_tables:
+  query: |
+    SELECT
+      schemaname,
+      relname AS tablename,
+      heap_blks_read,
+      heap_blks_hit,
+      idx_blks_read,
+      idx_blks_hit,
+      toast_blks_read,
+      toast_blks_hit,
+      tidx_blks_read,
+      tidx_blks_hit
+    FROM pg_statio_user_tables
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - tablename:
+        usage: LABEL
+        description: "Table name"
+    - heap_blks_read:
+        usage: COUNTER
+        description: "Heap blocks read from disk"
+    - heap_blks_hit:
+        usage: COUNTER
+        description: "Heap blocks found in buffer cache"
+    - idx_blks_read:
+        usage: COUNTER
+        description: "Index blocks read from disk"
+    - idx_blks_hit:
+        usage: COUNTER
+        description: "Index blocks found in buffer cache"
+    - toast_blks_read:
+        usage: COUNTER
+        description: "TOAST blocks read from disk"
+    - toast_blks_hit:
+        usage: COUNTER
+        description: "TOAST blocks found in buffer cache"
+    - tidx_blks_read:
+        usage: COUNTER
+        description: "TOAST index blocks read from disk"
+    - tidx_blks_hit:
+        usage: COUNTER
+        description: "TOAST index blocks found in buffer cache"
+
+# ------------------------------------------------------------
+# 4. REPLICATION & WAL
+# ------------------------------------------------------------
+
+pg_replication_slots:
+  query: |
+    SELECT
+      slot_name,
+      plugin,
+      slot_type,
+      database,
+      active::int AS active,
+      COALESCE(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn), 0) AS lag_bytes,
+      COALESCE(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn), 0) AS flush_lag_bytes
+    FROM pg_replication_slots
+  metrics:
+    - slot_name:
+        usage: LABEL
+        description: "Replication slot name"
+    - plugin:
+        usage: LABEL
+        description: "Logical decoding plugin"
+    - slot_type:
+        usage: LABEL
+        description: "Slot type (physical or logical)"
+    - database:
+        usage: LABEL
+        description: "Database name (logical slots only)"
+    - active:
+        usage: GAUGE
+        description: "1 if slot is active, 0 if not"
+    - lag_bytes:
+        usage: GAUGE
+        description: "WAL bytes not yet consumed by this slot"
+    - flush_lag_bytes:
+        usage: GAUGE
+        description: "WAL bytes not yet flushed by consumer (logical slots)"
+
+pg_replication_standby:
+  query: |
+    SELECT
+      client_addr::text AS client_addr,
+      application_name,
+      state,
+      sync_state,
+      COALESCE(pg_wal_lsn_diff(pg_current_wal_lsn(), sent_lsn), 0) AS sent_lag_bytes,
+      COALESCE(pg_wal_lsn_diff(pg_current_wal_lsn(), write_lsn), 0) AS write_lag_bytes,
+      COALESCE(pg_wal_lsn_diff(pg_current_wal_lsn(), flush_lsn), 0) AS flush_lag_bytes,
+      COALESCE(pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn), 0) AS replay_lag_bytes,
+      COALESCE(EXTRACT(EPOCH FROM write_lag), 0)::float AS write_lag_seconds,
+      COALESCE(EXTRACT(EPOCH FROM flush_lag), 0)::float AS flush_lag_seconds,
+      COALESCE(EXTRACT(EPOCH FROM replay_lag), 0)::float AS replay_lag_seconds
+    FROM pg_stat_replication
+  metrics:
+    - client_addr:
+        usage: LABEL
+        description: "Standby client IP address"
+    - application_name:
+        usage: LABEL
+        description: "Application name of standby"
+    - state:
+        usage: LABEL
+        description: "Replication state"
+    - sync_state:
+        usage: LABEL
+        description: "Sync state (async, sync, potential, quorum)"
+    - sent_lag_bytes:
+        usage: GAUGE
+        description: "Bytes of WAL sent but not yet acknowledged"
+    - write_lag_bytes:
+        usage: GAUGE
+        description: "Bytes of WAL not yet written on standby"
+    - flush_lag_bytes:
+        usage: GAUGE
+        description: "Bytes of WAL not yet flushed on standby"
+    - replay_lag_bytes:
+        usage: GAUGE
+        description: "Bytes of WAL not yet replayed on standby"
+    - write_lag_seconds:
+        usage: GAUGE
+        description: "Seconds of write lag"
+    - flush_lag_seconds:
+        usage: GAUGE
+        description: "Seconds of flush lag"
+    - replay_lag_seconds:
+        usage: GAUGE
+        description: "Seconds of replay lag"
+
+pg_wal_stats:
+  query: |
+    SELECT
+      wal_records,
+      wal_fpi,
+      wal_bytes,
+      wal_buffers_full,
+      wal_write,
+      wal_sync,
+      wal_write_time / 1000.0 AS wal_write_time_seconds,
+      wal_sync_time / 1000.0 AS wal_sync_time_seconds,
+      stats_reset
+    FROM pg_stat_wal
+  metrics:
+    - wal_records:
+        usage: COUNTER
+        description: "Total WAL records generated"
+    - wal_fpi:
+        usage: COUNTER
+        description: "Total WAL full page images"
+    - wal_bytes:
+        usage: COUNTER
+        description: "Total WAL bytes generated"
+    - wal_buffers_full:
+        usage: COUNTER
+        description: "Times WAL data written because buffers were full"
+    - wal_write:
+        usage: COUNTER
+        description: "Number of times WAL buffers were written to disk"
+    - wal_sync:
+        usage: COUNTER
+        description: "Number of times WAL files were synced to disk"
+    - wal_write_time_seconds:
+        usage: COUNTER
+        description: "Total time spent writing WAL buffers to disk (seconds)"
+    - wal_sync_time_seconds:
+        usage: COUNTER
+        description: "Total time spent syncing WAL files to disk (seconds)"
+
+pg_archive_status:
+  query: |
+    SELECT
+      archived_count,
+      failed_count,
+      EXTRACT(EPOCH FROM last_archived_time)::float AS last_archived_epoch,
+      last_archived_wal,
+      EXTRACT(EPOCH FROM last_failed_time)::float AS last_failed_epoch
+    FROM pg_stat_archiver
+  metrics:
+    - archived_count:
+        usage: COUNTER
+        description: "Number of WAL files successfully archived"
+    - failed_count:
+        usage: COUNTER
+        description: "Number of failed WAL archive attempts"
+    - last_archived_epoch:
+        usage: GAUGE
+        description: "Epoch of last successful WAL archive"
+    - last_archived_wal:
+        usage: LABEL
+        description: "Name of last successfully archived WAL file"
+    - last_failed_epoch:
+        usage: GAUGE
+        description: "Epoch of last failed WAL archive attempt"
+
+# ------------------------------------------------------------
+# 5. LOCKS
+# ------------------------------------------------------------
+
+pg_locks_summary:
+  query: |
+    SELECT
+      pg_database.datname,
+      pg_locks.mode,
+      pg_locks.granted::int AS granted,
+      count(*) AS count
+    FROM pg_locks
+    JOIN pg_database ON pg_database.oid = pg_locks.database
+    GROUP BY pg_database.datname, pg_locks.mode, pg_locks.granted
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - mode:
+        usage: LABEL
+        description: "Lock mode"
+    - granted:
+        usage: LABEL
+        description: "1 if lock is granted, 0 if waiting"
+    - count:
+        usage: GAUGE
+        description: "Number of locks in this state"
+
+pg_lock_conflicts:
+  query: |
+    SELECT
+      db.datname,
+      blocking.pid AS blocking_pid,
+      blocked.pid AS blocked_pid,
+      blocking_act.query AS blocking_query,
+      blocked_act.query AS blocked_query,
+      EXTRACT(EPOCH FROM (now() - blocked_act.query_start))::float AS blocked_duration_seconds
+    FROM pg_catalog.pg_locks blocked
+    JOIN pg_catalog.pg_locks blocking
+      ON blocking.locktype = blocked.locktype
+      AND blocking.database IS NOT DISTINCT FROM blocked.database
+      AND blocking.relation IS NOT DISTINCT FROM blocked.relation
+      AND blocking.page IS NOT DISTINCT FROM blocked.page
+      AND blocking.tuple IS NOT DISTINCT FROM blocked.tuple
+      AND blocking.virtualxid IS NOT DISTINCT FROM blocked.virtualxid
+      AND blocking.transactionid IS NOT DISTINCT FROM blocked.transactionid
+      AND blocking.classid IS NOT DISTINCT FROM blocked.classid
+      AND blocking.objid IS NOT DISTINCT FROM blocked.objid
+      AND blocking.objsubid IS NOT DISTINCT FROM blocked.objsubid
+      AND blocking.pid != blocked.pid
+    JOIN pg_catalog.pg_stat_activity blocked_act ON blocked_act.pid = blocked.pid
+    JOIN pg_catalog.pg_stat_activity blocking_act ON blocking_act.pid = blocking.pid
+    JOIN pg_database db ON db.oid = blocked.database
+    WHERE NOT blocked.granted
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - blocking_pid:
+        usage: LABEL
+        description: "PID of the blocking session"
+    - blocked_pid:
+        usage: LABEL
+        description: "PID of the blocked session"
+    - blocking_query:
+        usage: LABEL
+        description: "Query being run by the blocker"
+    - blocked_query:
+        usage: LABEL
+        description: "Query being blocked"
+    - blocked_duration_seconds:
+        usage: GAUGE
+        description: "How long the query has been blocked (seconds)"
+
+pg_deadlocks:
+  query: |
+    SELECT
+      datname,
+      deadlocks,
+      conflicts,
+      temp_files,
+      temp_bytes
+    FROM pg_stat_database
+    WHERE datname NOT IN ('template0', 'template1')
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - deadlocks:
+        usage: COUNTER
+        description: "Number of deadlocks detected"
+    - conflicts:
+        usage: COUNTER
+        description: "Number of queries canceled due to conflicts with recovery"
+    - temp_files:
+        usage: COUNTER
+        description: "Number of temp files created"
+    - temp_bytes:
+        usage: COUNTER
+        description: "Total bytes written to temp files"
+
+# ------------------------------------------------------------
+# 6. BLOAT
+# ------------------------------------------------------------
+
+pg_table_bloat:
+  query: |
+    SELECT
+      schemaname,
+      relname                                                        AS tablename,
+      n_dead_tup                                                     AS dead_tuples,
+      n_live_tup                                                     AS live_tuples,
+      CASE WHEN n_live_tup > 0
+           THEN round((n_dead_tup::numeric / n_live_tup::numeric), 4)
+           ELSE 0
+      END                                                            AS dead_ratio,
+      pg_total_relation_size(relid)                                  AS total_bytes,
+      pg_relation_size(relid)                                        AS table_bytes,
+      CASE WHEN pg_relation_size(relid) > 0
+           THEN round(
+               (pg_total_relation_size(relid) - pg_relation_size(relid))::numeric
+               / pg_relation_size(relid)::numeric, 4)
+           ELSE 0
+      END                                                            AS bloat_ratio
+    FROM pg_stat_user_tables
+    WHERE n_live_tup > 0
+      AND schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+    ORDER BY dead_ratio DESC
+    LIMIT 50
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - tablename:
+        usage: LABEL
+        description: "Table name"
+    - dead_tuples:
+        usage: GAUGE
+        description: "Number of dead (bloat) tuples"
+    - live_tuples:
+        usage: GAUGE
+        description: "Number of live tuples"
+    - dead_ratio:
+        usage: GAUGE
+        description: "Ratio of dead to live tuples (bloat factor)"
+    - total_bytes:
+        usage: GAUGE
+        description: "Total relation size in bytes"
+    - table_bytes:
+        usage: GAUGE
+        description: "Table heap size in bytes"
+    - bloat_ratio:
+        usage: GAUGE
+        description: "Ratio of (total - heap) to heap — approximates index+TOAST overhead"
+
+pg_index_bloat:
+  query: |
+    SELECT
+      schemaname,
+      relname AS tablename,
+      indexrelname AS indexname,
+      idx_scan,
+      pg_relation_size(indexrelid) AS index_bytes,
+      pg_relation_size(relid) AS table_bytes,
+      CASE WHEN pg_relation_size(relid) > 0
+           THEN round((pg_relation_size(indexrelid)::numeric / pg_relation_size(relid)::numeric), 4)
+           ELSE 0 END AS index_to_table_ratio
+    FROM pg_stat_user_indexes
+    WHERE pg_relation_size(relid) > 0
+    ORDER BY index_bytes DESC
+    LIMIT 50
+  metrics:
+    - schemaname:
+        usage: LABEL
+        description: "Schema name"
+    - tablename:
+        usage: LABEL
+        description: "Table name"
+    - indexname:
+        usage: LABEL
+        description: "Index name"
+    - idx_scan:
+        usage: COUNTER
+        description: "Number of index scans (0 = unused)"
+    - index_bytes:
+        usage: GAUGE
+        description: "Index size in bytes"
+    - table_bytes:
+        usage: GAUGE
+        description: "Table size in bytes"
+    - index_to_table_ratio:
+        usage: GAUGE
+        description: "Ratio of index size to table size"
+
+# ------------------------------------------------------------
+# 7. DATABASE-LEVEL STATS
+# ------------------------------------------------------------
+
+pg_database_stats:
+  query: |
+    SELECT
+      datname,
+      numbackends,
+      xact_commit,
+      xact_rollback,
+      blks_read,
+      blks_hit,
+      CASE WHEN blks_read + blks_hit > 0
+           THEN blks_hit::float / (blks_read + blks_hit)
+           ELSE 0 END AS cache_hit_ratio,
+      tup_returned,
+      tup_fetched,
+      tup_inserted,
+      tup_updated,
+      tup_deleted,
+      conflicts,
+      deadlocks,
+      checksum_failures,
+      blk_read_time / 1000.0 AS blk_read_time_seconds,
+      blk_write_time / 1000.0 AS blk_write_time_seconds,
+      session_time / 1000.0 AS session_time_seconds,
+      active_time / 1000.0 AS active_time_seconds,
+      idle_in_transaction_time / 1000.0 AS idle_in_transaction_time_seconds,
+      sessions,
+      sessions_abandoned,
+      sessions_fatal,
+      sessions_killed,
+      pg_database_size(datname) AS size_bytes
+    FROM pg_stat_database
+    WHERE datname NOT IN ('template0', 'template1')
+  metrics:
+    - datname:
+        usage: LABEL
+        description: "Database name"
+    - numbackends:
+        usage: GAUGE
+        description: "Number of active backends"
+    - xact_commit:
+        usage: COUNTER
+        description: "Transactions committed"
+    - xact_rollback:
+        usage: COUNTER
+        description: "Transactions rolled back"
+    - blks_read:
+        usage: COUNTER
+        description: "Disk blocks read"
+    - blks_hit:
+        usage: COUNTER
+        description: "Buffer cache hits"
+    - cache_hit_ratio:
+        usage: GAUGE
+        description: "Buffer cache hit ratio"
+    - tup_returned:
+        usage: COUNTER
+        description: "Rows returned by queries"
+    - tup_fetched:
+        usage: COUNTER
+        description: "Rows fetched by queries"
+    - tup_inserted:
+        usage: COUNTER
+        description: "Rows inserted"
+    - tup_updated:
+        usage: COUNTER
+        description: "Rows updated"
+    - tup_deleted:
+        usage: COUNTER
+        description: "Rows deleted"
+    - conflicts:
+        usage: COUNTER
+        description: "Query conflicts due to recovery"
+    - deadlocks:
+        usage: COUNTER
+        description: "Deadlocks detected"
+    - checksum_failures:
+        usage: COUNTER
+        description: "Data page checksum failures"
+    - blk_read_time_seconds:
+        usage: GAUGE
+        description: "Time spent reading blocks (seconds)"
+    - blk_write_time_seconds:
+        usage: GAUGE
+        description: "Time spent writing blocks (seconds)"
+    - session_time_seconds:
+        usage: COUNTER
+        description: "Total session time (seconds)"
+    - active_time_seconds:
+        usage: COUNTER
+        description: "Time sessions spent actively executing queries (seconds)"
+    - idle_in_transaction_time_seconds:
+        usage: COUNTER
+        description: "Time sessions spent idle in transaction (seconds)"
+    - sessions:
+        usage: COUNTER
+        description: "Total sessions established"
+    - sessions_abandoned:
+        usage: COUNTER
+        description: "Sessions abandoned (client disconnected)"
+    - sessions_fatal:
+        usage: COUNTER
+        description: "Sessions terminated with fatal error"
+    - sessions_killed:
+        usage: COUNTER
+        description: "Sessions terminated by pg_terminate_backend()"
+    - size_bytes:
+        usage: GAUGE
+        description: "Total database size in bytes"
+
+# ------------------------------------------------------------
+# 8. BGWRITER & CHECKPOINT
+# ------------------------------------------------------------
+
+pg_bgwriter:
+  query: |
+    SELECT
+      checkpoints_timed,
+      checkpoints_req,
+      checkpoint_write_time / 1000.0 AS checkpoint_write_time_seconds,
+      checkpoint_sync_time / 1000.0 AS checkpoint_sync_time_seconds,
+      buffers_checkpoint,
+      buffers_clean,
+      maxwritten_clean,
+      buffers_backend,
+      buffers_backend_fsync,
+      buffers_alloc
+    FROM pg_stat_bgwriter
+  metrics:
+    - checkpoints_timed:
+        usage: COUNTER
+        description: "Scheduled checkpoints performed"
+    - checkpoints_req:
+        usage: COUNTER
+        description: "Requested checkpoints performed"
+    - checkpoint_write_time_seconds:
+        usage: COUNTER
+        description: "Time spent writing checkpoint files (seconds)"
+    - checkpoint_sync_time_seconds:
+        usage: COUNTER
+        description: "Time spent syncing checkpoint files (seconds)"
+    - buffers_checkpoint:
+        usage: COUNTER
+        description: "Buffers written during checkpoints"
+    - buffers_clean:
+        usage: COUNTER
+        description: "Buffers written by bgwriter"
+    - maxwritten_clean:
+        usage: COUNTER
+        description: "Times bgwriter stopped due to writing too many buffers"
+    - buffers_backend:
+        usage: COUNTER
+        description: "Buffers written directly by backends"
+    - buffers_backend_fsync:
+        usage: COUNTER
+        description: "Backend fsync calls"
+    - buffers_alloc:
+        usage: COUNTER
+        description: "Buffers allocated"

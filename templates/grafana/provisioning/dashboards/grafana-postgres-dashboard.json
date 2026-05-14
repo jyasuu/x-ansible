@@ -144,7 +144,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "100 * pg_connections_max_used_connections / pg_connections_max_max_connections",
+          "expr": "100 * pg_connections_max_used_connections{instance=~\"$instance\"} / pg_connections_max_max_connections",
           "legendFormat": "Used %"
         }
       ]
@@ -201,7 +201,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(pg_connections_by_state_count{state=\"active\"})",
+          "expr": "sum(pg_connections_by_state_count{state=\"active\",instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "Active"
         }
       ]
@@ -262,7 +262,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(pg_connections_by_state_count{state=\"idle in transaction\"})",
+          "expr": "sum(pg_connections_by_state_count{state=\"idle in transaction\",instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "Idle in Txn"
         }
       ]
@@ -323,7 +323,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(pg_long_running_queries_count)",
+          "expr": "sum(pg_long_running_queries_count{instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "Long Queries"
         }
       ]
@@ -384,8 +384,240 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(pg_waiting_queries_count)",
+          "expr": "sum(pg_waiting_queries_count{instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "Waiting"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 300
+              },
+              {
+                "color": "red",
+                "value": 900
+              }
+            ]
+          },
+          "unit": "s",
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-background"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "instance"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Instance"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "datname"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Database"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "schemaname"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Schema"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "usename"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "User"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "state"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "State"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #count"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Count"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value #max_duration"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Max Duration"
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "query_text"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "SQL Statement"
+              },
+              {
+                "id": "custom.width",
+                "value": 600
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "auto"
+              },
+              {
+                "id": "custom.align",
+                "value": "left"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "id": 8,
+      "title": "\ud83d\udc22 Long Running SQL Detail (>30s)",
+      "type": "table",
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "Max Duration",
+            "desc": true
+          }
+        ],
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pg_long_running_queries_count{instance=~\"$instance\",datname=~\"$datname\"}",
+          "legendFormat": "{{instance}} | {{datname}} | {{usename}} | {{state}} | {{query_text}}",
+          "instant": true,
+          "format": "table",
+          "refId": "count"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "pg_long_running_queries_max_duration_seconds{instance=~\"$instance\",datname=~\"$datname\"}",
+          "legendFormat": "{{instance}} | {{datname}} | {{usename}} | {{state}} | {{query_text}}",
+          "instant": true,
+          "format": "table",
+          "refId": "max_duration"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true
+            },
+            "renameByName": {
+              "query_text": "SQL Statement",
+              "instance": "Instance",
+              "datname": "Database",
+              "usename": "User",
+              "state": "State"
+            }
+          }
         }
       ]
     },
@@ -417,7 +649,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (state) (pg_connections_by_state_count)",
+          "expr": "sum by (state) (pg_connections_by_state_count{instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "{{state}}"
         }
       ]
@@ -450,7 +682,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "max by (state) (pg_connections_by_state_max_duration_seconds)",
+          "expr": "max by (state) (pg_connections_by_state_max_duration_seconds{instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "{{state}}"
         }
       ]
@@ -461,7 +693,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 21
       },
       "id": 101,
       "title": "\u26a1 Query Performance (pg_stat_statements)",
@@ -484,7 +716,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 22
       },
       "id": 10,
       "title": "Query Calls Rate (top queries)",
@@ -495,7 +727,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, irate(pg_stat_statements_top_calls[5m]))",
+          "expr": "topk(10, irate(pg_stat_statements_top_calls{instance=~\"$instance\",datname=~\"$datname\"}[5m]))",
           "legendFormat": "{{datname}} qid:{{queryid}}"
         }
       ]
@@ -517,7 +749,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 22
       },
       "id": 11,
       "title": "Mean Execution Time (top queries)",
@@ -528,7 +760,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pg_stat_statements_top_mean_exec_time_seconds)",
+          "expr": "topk(10, pg_stat_statements_top_mean_exec_time_seconds{instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "{{datname}} qid:{{queryid}}"
         }
       ]
@@ -550,7 +782,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 30
       },
       "id": 12,
       "title": "Shared Blocks Read vs Hit Rate",
@@ -561,7 +793,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (datname) (irate(pg_stat_statements_summary_total_blks_read[5m]))",
+          "expr": "sum by (datname) (irate(pg_stat_statements_summary_total_blks_read{instance=~\"$instance\",datname=~\"$datname\"}[5m]))",
           "legendFormat": "{{datname}} - disk reads"
         },
         {
@@ -569,7 +801,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (datname) (irate(pg_stat_statements_summary_total_blks_hit[5m]))",
+          "expr": "sum by (datname) (irate(pg_stat_statements_summary_total_blks_hit{instance=~\"$instance\",datname=~\"$datname\"}[5m]))",
           "legendFormat": "{{datname}} - cache hits"
         }
       ]
@@ -610,7 +842,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 30
       },
       "id": 13,
       "title": "Cache Hit Ratio by Database",
@@ -621,7 +853,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_stat_statements_summary_cache_hit_ratio",
+          "expr": "pg_stat_statements_summary_cache_hit_ratio{instance=~\"$instance\",datname=~\"$datname\"}",
           "legendFormat": "{{datname}}"
         }
       ]
@@ -643,7 +875,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 30
+        "y": 38
       },
       "id": 14,
       "title": "Block I/O Time (read vs write)",
@@ -654,7 +886,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (datname) (irate(pg_stat_statements_top_blk_read_time_seconds[5m]))",
+          "expr": "sum by (datname) (irate(pg_stat_statements_top_blk_read_time_seconds{instance=~\"$instance\",datname=~\"$datname\"}[5m]))",
           "legendFormat": "{{datname}} - read time"
         },
         {
@@ -662,7 +894,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (datname) (irate(pg_stat_statements_top_blk_write_time_seconds[5m]))",
+          "expr": "sum by (datname) (irate(pg_stat_statements_top_blk_write_time_seconds{instance=~\"$instance\",datname=~\"$datname\"}[5m]))",
           "legendFormat": "{{datname}} - write time"
         }
       ]
@@ -684,7 +916,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 30
+        "y": 38
       },
       "id": 15,
       "title": "WAL Records Rate per Query",
@@ -695,7 +927,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(5, irate(pg_stat_statements_top_wal_records[5m]))",
+          "expr": "topk(5, irate(pg_stat_statements_top_wal_records{instance=~\"$instance\",datname=~\"$datname\"}[5m]))",
           "legendFormat": "{{datname}} qid:{{queryid}}"
         }
       ]
@@ -706,7 +938,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 46
       },
       "id": 102,
       "title": "\ud83d\uddc4\ufe0f Table & Index Statistics",
@@ -729,7 +961,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "id": 20,
       "title": "DML Rate by Table (top 10)",
@@ -740,7 +972,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, irate(pg_table_stats_n_tup_ins[5m]) + irate(pg_table_stats_n_tup_upd[5m]) + irate(pg_table_stats_n_tup_del[5m]))",
+          "expr": "topk(10, irate(pg_table_stats_n_tup_ins{instance=~\"$instance\",schemaname=~\"$schemaname\"}[5m]) + irate(pg_table_stats_n_tup_upd{instance=~\"$instance\",schemaname=~\"$schemaname\"}[5m]) + irate(pg_table_stats_n_tup_del{instance=~\"$instance\",schemaname=~\"$schemaname\"}[5m]))",
           "legendFormat": "{{schemaname}}.{{tablename}}"
         }
       ]
@@ -762,7 +994,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 47
       },
       "id": 21,
       "title": "Sequential vs Index Scan Rate (top tables)",
@@ -773,7 +1005,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(5, irate(pg_table_stats_seq_scan[5m]))",
+          "expr": "topk(5, irate(pg_table_stats_seq_scan{instance=~\"$instance\",schemaname=~\"$schemaname\"}[5m]))",
           "legendFormat": "seq: {{schemaname}}.{{tablename}}"
         },
         {
@@ -781,7 +1013,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(5, irate(pg_table_stats_idx_scan[5m]))",
+          "expr": "topk(5, irate(pg_table_stats_idx_scan{instance=~\"$instance\",schemaname=~\"$schemaname\"}[5m]))",
           "legendFormat": "idx: {{schemaname}}.{{tablename}}"
         }
       ]
@@ -803,7 +1035,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 47
+        "y": 55
       },
       "id": 22,
       "title": "Top 10 Tables by Total Size",
@@ -822,7 +1054,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pg_table_size_total_bytes)",
+          "expr": "topk(10, pg_table_size_total_bytes{instance=~\"$instance\",schemaname=~\"$schemaname\"})",
           "legendFormat": "{{schemaname}}.{{tablename}}"
         }
       ]
@@ -844,7 +1076,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 47
+        "y": 55
       },
       "id": 23,
       "title": "Top 10 Indexes by Size",
@@ -863,7 +1095,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pg_index_stats_index_size_bytes)",
+          "expr": "topk(10, pg_index_stats_index_size_bytes{instance=~\"$instance\",schemaname=~\"$schemaname\"})",
           "legendFormat": "{{schemaname}}.{{indexname}}"
         }
       ]
@@ -885,7 +1117,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 63
       },
       "id": 24,
       "title": "Dead Tuples by Table (top 10)",
@@ -904,7 +1136,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pg_table_stats_n_dead_tup)",
+          "expr": "topk(10, pg_table_stats_n_dead_tup{instance=~\"$instance\",schemaname=~\"$schemaname\"})",
           "legendFormat": "{{schemaname}}.{{tablename}}"
         }
       ]
@@ -926,7 +1158,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 63
       },
       "id": 25,
       "title": "Unused Indexes (idx_scan = 0)",
@@ -945,7 +1177,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_unused_indexes_index_size_bytes",
+          "expr": "pg_unused_indexes_index_size_bytes{instance=~\"$instance\",schemaname=~\"$schemaname\"}",
           "legendFormat": "{{schemaname}}.{{tablename}}.{{indexname}}",
           "instant": true,
           "format": "table"
@@ -958,7 +1190,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 71
       },
       "id": 103,
       "title": "\ud83d\udd04 Replication & WAL",
@@ -998,7 +1230,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 64
+        "y": 72
       },
       "id": 30,
       "options": {
@@ -1020,7 +1252,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_replication_standby_replay_lag_bytes",
+          "expr": "pg_replication_standby_replay_lag_bytes{instance=~\"$instance\"}",
           "legendFormat": "{{application_name}}"
         }
       ]
@@ -1059,7 +1291,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 64
+        "y": 72
       },
       "id": 31,
       "options": {
@@ -1081,7 +1313,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_replication_standby_replay_lag_seconds",
+          "expr": "pg_replication_standby_replay_lag_seconds{instance=~\"$instance\"}",
           "legendFormat": "{{application_name}}"
         }
       ]
@@ -1120,7 +1352,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 64
+        "y": 72
       },
       "id": 32,
       "options": {
@@ -1142,7 +1374,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_replication_slots_lag_bytes",
+          "expr": "pg_replication_slots_lag_bytes{instance=~\"$instance\",datname=~\"$datname\"}",
           "legendFormat": "{{slot_name}}"
         }
       ]
@@ -1164,7 +1396,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 70
+        "y": 78
       },
       "id": 33,
       "title": "WAL Generation Rate",
@@ -1175,7 +1407,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_wal_stats_wal_bytes[5m])",
+          "expr": "rate(pg_wal_stats_wal_bytes{instance=~\"$instance\"}[5m])",
           "legendFormat": "WAL bytes/s"
         }
       ]
@@ -1197,7 +1429,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 70
+        "y": 78
       },
       "id": 34,
       "title": "WAL Write & Sync Time",
@@ -1208,7 +1440,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_wal_stats_wal_write_time_seconds[5m])",
+          "expr": "rate(pg_wal_stats_wal_write_time_seconds{instance=~\"$instance\"}[5m])",
           "legendFormat": "Write time/s"
         },
         {
@@ -1216,7 +1448,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_wal_stats_wal_sync_time_seconds[5m])",
+          "expr": "rate(pg_wal_stats_wal_sync_time_seconds{instance=~\"$instance\"}[5m])",
           "legendFormat": "Sync time/s"
         }
       ]
@@ -1238,7 +1470,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 78
+        "y": 86
       },
       "id": 35,
       "title": "Replication Lag Over Time (bytes)",
@@ -1249,7 +1481,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_replication_standby_sent_lag_bytes",
+          "expr": "pg_replication_standby_sent_lag_bytes{instance=~\"$instance\"}",
           "legendFormat": "{{application_name}} - sent"
         },
         {
@@ -1257,7 +1489,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_replication_standby_write_lag_bytes",
+          "expr": "pg_replication_standby_write_lag_bytes{instance=~\"$instance\"}",
           "legendFormat": "{{application_name}} - write"
         },
         {
@@ -1265,7 +1497,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_replication_standby_flush_lag_bytes",
+          "expr": "pg_replication_standby_flush_lag_bytes{instance=~\"$instance\"}",
           "legendFormat": "{{application_name}} - flush"
         },
         {
@@ -1273,7 +1505,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_replication_standby_replay_lag_bytes",
+          "expr": "pg_replication_standby_replay_lag_bytes{instance=~\"$instance\"}",
           "legendFormat": "{{application_name}} - replay"
         }
       ]
@@ -1295,7 +1527,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 86
       },
       "id": 36,
       "title": "Archive Status",
@@ -1306,7 +1538,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_archive_status_archived_count[5m])",
+          "expr": "rate(pg_archive_status_archived_count{instance=~\"$instance\"}[5m])",
           "legendFormat": "Archived/s"
         },
         {
@@ -1314,7 +1546,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_archive_status_failed_count[5m])",
+          "expr": "rate(pg_archive_status_failed_count{instance=~\"$instance\"}[5m])",
           "legendFormat": "Failed/s"
         }
       ]
@@ -1325,7 +1557,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 94
       },
       "id": 104,
       "title": "\ud83d\udd12 Locks",
@@ -1365,7 +1597,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 87
+        "y": 95
       },
       "id": 40,
       "options": {
@@ -1387,7 +1619,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "count(pg_lock_conflicts_blocked_duration_seconds) or vector(0)",
+          "expr": "count(pg_lock_conflicts_blocked_duration_seconds{instance=~\"$instance\",datname=~\"$datname\"}) or vector(0)",
           "legendFormat": "Blocked queries"
         }
       ]
@@ -1426,7 +1658,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 87
+        "y": 95
       },
       "id": 41,
       "options": {
@@ -1448,7 +1680,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(pg_deadlocks_deadlocks)",
+          "expr": "sum(pg_deadlocks_deadlocks{instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "Deadlocks"
         }
       ]
@@ -1487,7 +1719,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 87
+        "y": 95
       },
       "id": 42,
       "options": {
@@ -1509,7 +1741,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(pg_locks_summary_count{granted=\"0\"})",
+          "expr": "sum(pg_locks_summary_count{granted=\"0\",instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "Waiting locks"
         }
       ]
@@ -1531,7 +1763,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 91
+        "y": 99
       },
       "id": 43,
       "title": "Locks by Mode Over Time",
@@ -1542,7 +1774,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (mode) (pg_locks_summary_count{granted=\"1\"})",
+          "expr": "sum by (mode) (pg_locks_summary_count{granted=\"1\",instance=~\"$instance\",datname=~\"$datname\"})",
           "legendFormat": "{{mode}}"
         }
       ]
@@ -1564,7 +1796,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 91
+        "y": 99
       },
       "id": 44,
       "title": "Deadlock Rate by Database",
@@ -1575,7 +1807,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_deadlocks_deadlocks[5m])",
+          "expr": "rate(pg_deadlocks_deadlocks{instance=~\"$instance\",datname=~\"$datname\"}[5m])",
           "legendFormat": "{{datname}}"
         }
       ]
@@ -1586,7 +1818,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 99
+        "y": 107
       },
       "id": 105,
       "title": "\ud83e\uddf9 Bloat",
@@ -1600,16 +1832,39 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1.0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              },
+              {
+                "color": "orange",
+                "value": 0.3
+              },
+              {
+                "color": "red",
+                "value": 0.5
+              }
+            ]
+          }
         }
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 100
+        "y": 108
       },
       "id": 50,
       "title": "Table Bloat Ratio (top 10 most bloated)",
@@ -1619,8 +1874,10 @@
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
-          ]
-        }
+          ],
+          "values": false
+        },
+        "displayMode": "basic"
       },
       "targets": [
         {
@@ -1628,7 +1885,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pg_table_bloat_dead_ratio > 0.05)",
+          "expr": "topk(10, pg_table_bloat_dead_ratio{instance=~\"$instance\"} > 0.05)",
           "legendFormat": "{{schemaname}}.{{tablename}}"
         }
       ]
@@ -1650,7 +1907,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 100
+        "y": 108
       },
       "id": 51,
       "title": "Dead Tuples Over Time (top tables)",
@@ -1661,7 +1918,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(5, pg_table_bloat_dead_tuples)",
+          "expr": "topk(5, pg_table_bloat_dead_tuples{instance=~\"$instance\"})",
           "legendFormat": "{{schemaname}}.{{tablename}}"
         }
       ]
@@ -1676,14 +1933,15 @@
           "color": {
             "mode": "palette-classic"
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "min": 0
         }
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 108
+        "y": 116
       },
       "id": 52,
       "title": "Index Size vs Table Size (top indexes)",
@@ -1693,8 +1951,10 @@
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
-          ]
-        }
+          ],
+          "values": false
+        },
+        "displayMode": "basic"
       },
       "targets": [
         {
@@ -1702,7 +1962,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pg_index_bloat_index_bytes)",
+          "expr": "topk(10, pg_index_bloat_index_bytes{instance=~\"$instance\"})",
           "legendFormat": "{{schemaname}}.{{indexname}}"
         }
       ]
@@ -1715,19 +1975,40 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 104857600
+              },
+              {
+                "color": "orange",
+                "value": 536870912
+              },
+              {
+                "color": "red",
+                "value": 1073741824
+              }
+            ]
+          }
         }
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 108
+        "y": 116
       },
       "id": 53,
-      "title": "Total Unused Index Wasted Space",
+      "title": "Total Unused Index Wasted Space (by DB)",
       "type": "stat",
       "options": {
         "reduceOptions": {
@@ -1735,9 +2016,9 @@
             "lastNotNull"
           ]
         },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
+        "orientation": "horizontal",
+        "textMode": "value_and_name",
+        "colorMode": "background",
         "graphMode": "none"
       },
       "targets": [
@@ -1746,8 +2027,9 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(pg_unused_indexes_index_size_bytes)",
-          "legendFormat": "Wasted bytes"
+          "expr": "sum by (datname) (pg_unused_indexes_index_size_bytes{instance=~\"$instance\"})",
+          "legendFormat": "{{datname}}",
+          "refId": "A"
         }
       ]
     },
@@ -1757,7 +2039,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 116
+        "y": 124
       },
       "id": 106,
       "title": "\ud83c\udfd7\ufe0f Database Overview & Bgwriter",
@@ -1780,7 +2062,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 117
+        "y": 125
       },
       "id": 60,
       "options": {
@@ -1801,7 +2083,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_database_stats_size_bytes",
+          "expr": "pg_database_stats_size_bytes{instance=~\"$instance\",datname=~\"$datname\"}",
           "legendFormat": "{{datname}}"
         }
       ]
@@ -1842,7 +2124,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 117
+        "y": 125
       },
       "id": 61,
       "title": "Buffer Cache Hit Ratio by Database",
@@ -1853,7 +2135,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "pg_database_stats_cache_hit_ratio",
+          "expr": "pg_database_stats_cache_hit_ratio{instance=~\"$instance\",datname=~\"$datname\"}",
           "legendFormat": "{{datname}}"
         }
       ]
@@ -1875,7 +2157,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 117
+        "y": 125
       },
       "id": 62,
       "title": "Transaction Rate (commit vs rollback)",
@@ -1886,7 +2168,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (datname) (rate(pg_database_stats_xact_commit[5m]))",
+          "expr": "sum by (datname) (rate(pg_database_stats_xact_commit{instance=~\"$instance\",datname=~\"$datname\"}[5m]))",
           "legendFormat": "{{datname}} commits"
         },
         {
@@ -1894,7 +2176,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (datname) (rate(pg_database_stats_xact_rollback[5m]))",
+          "expr": "sum by (datname) (rate(pg_database_stats_xact_rollback{instance=~\"$instance\",datname=~\"$datname\"}[5m]))",
           "legendFormat": "{{datname}} rollbacks"
         }
       ]
@@ -1916,7 +2198,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 123
+        "y": 131
       },
       "id": 63,
       "title": "Checkpoint Rate & Buffer Writes",
@@ -1927,7 +2209,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_bgwriter_checkpoints_timed[5m])",
+          "expr": "rate(pg_bgwriter_checkpoints_timed{instance=~\"$instance\"}[5m])",
           "legendFormat": "Checkpoints (scheduled)"
         },
         {
@@ -1935,7 +2217,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_bgwriter_checkpoints_req[5m])",
+          "expr": "rate(pg_bgwriter_checkpoints_req{instance=~\"$instance\"}[5m])",
           "legendFormat": "Checkpoints (requested)"
         },
         {
@@ -1943,7 +2225,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_bgwriter_buffers_backend[5m])",
+          "expr": "rate(pg_bgwriter_buffers_backend{instance=~\"$instance\"}[5m])",
           "legendFormat": "Buffers by backend"
         },
         {
@@ -1951,7 +2233,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_bgwriter_buffers_clean[5m])",
+          "expr": "rate(pg_bgwriter_buffers_clean{instance=~\"$instance\"}[5m])",
           "legendFormat": "Buffers by bgwriter"
         },
         {
@@ -1959,7 +2241,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_bgwriter_buffers_checkpoint[5m])",
+          "expr": "rate(pg_bgwriter_buffers_checkpoint{instance=~\"$instance\"}[5m])",
           "legendFormat": "Buffers at checkpoint"
         }
       ]
@@ -1981,7 +2263,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 123
+        "y": 131
       },
       "id": 64,
       "title": "Checkpoint Write & Sync Time",
@@ -1992,7 +2274,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_bgwriter_checkpoint_write_time_seconds[5m])",
+          "expr": "rate(pg_bgwriter_checkpoint_write_time_seconds{instance=~\"$instance\"}[5m])",
           "legendFormat": "Write time/s"
         },
         {
@@ -2000,7 +2282,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_bgwriter_checkpoint_sync_time_seconds[5m])",
+          "expr": "rate(pg_bgwriter_checkpoint_sync_time_seconds{instance=~\"$instance\"}[5m])",
           "legendFormat": "Sync time/s"
         }
       ]
@@ -2022,7 +2304,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 131
+        "y": 139
       },
       "id": 65,
       "title": "Temp File Usage Rate",
@@ -2033,7 +2315,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_database_stats_temp_bytes[5m])",
+          "expr": "rate(pg_database_stats_temp_bytes{instance=~\"$instance\",datname=~\"$datname\"}[5m])",
           "legendFormat": "{{datname}} - temp bytes/s"
         }
       ]
@@ -2055,7 +2337,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 131
+        "y": 139
       },
       "id": 66,
       "title": "Session States (PG15+ sessions metrics)",
@@ -2066,7 +2348,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_database_stats_sessions[5m])",
+          "expr": "rate(pg_database_stats_sessions{instance=~\"$instance\",datname=~\"$datname\"}[5m])",
           "legendFormat": "{{datname}} - new sessions/s"
         },
         {
@@ -2074,7 +2356,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_database_stats_sessions_abandoned[5m])",
+          "expr": "rate(pg_database_stats_sessions_abandoned{instance=~\"$instance\",datname=~\"$datname\"}[5m])",
           "legendFormat": "{{datname}} - abandoned/s"
         },
         {
@@ -2082,7 +2364,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_database_stats_sessions_fatal[5m])",
+          "expr": "rate(pg_database_stats_sessions_fatal{instance=~\"$instance\",datname=~\"$datname\"}[5m])",
           "legendFormat": "{{datname}} - fatal/s"
         },
         {
@@ -2090,7 +2372,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "rate(pg_database_stats_sessions_killed[5m])",
+          "expr": "rate(pg_database_stats_sessions_killed{instance=~\"$instance\",datname=~\"$datname\"}[5m])",
           "legendFormat": "{{datname}} - killed/s"
         }
       ]
@@ -2125,11 +2407,33 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
+        "definition": "label_values(pg_database_stats_size_bytes, instance)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Instance",
+        "multi": false,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(pg_database_stats_size_bytes, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
         "definition": "label_values(pg_database_stats_size_bytes, datname)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Database",
-        "multi": true,
+        "multi": false,
         "name": "datname",
         "options": [],
         "query": {
@@ -2149,9 +2453,9 @@
         },
         "definition": "label_values(pg_table_stats_n_live_tup, schemaname)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Schema",
-        "multi": true,
+        "multi": false,
         "name": "schemaname",
         "options": [],
         "query": {

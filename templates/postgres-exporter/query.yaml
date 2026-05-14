@@ -56,13 +56,14 @@ pg_long_running_queries:
       datname,
       usename,
       state,
+      left(query, 200) AS query_text,
       count(*) AS count,
       max(EXTRACT(EPOCH FROM (now() - query_start)))::float AS max_duration_seconds
     FROM pg_stat_activity
     WHERE state != 'idle'
       AND query_start IS NOT NULL
       AND EXTRACT(EPOCH FROM (now() - query_start)) > 30
-    GROUP BY datname, usename, state
+    GROUP BY datname, usename, state, left(query, 200)
   metrics:
     - datname:
         usage: LABEL
@@ -73,6 +74,9 @@ pg_long_running_queries:
     - state:
         usage: LABEL
         description: "Query state"
+    - query_text:
+        usage: LABEL
+        description: "First 200 chars of the SQL statement"
     - count:
         usage: GAUGE
         description: "Number of long-running queries (>30s)"
